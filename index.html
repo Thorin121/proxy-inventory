@@ -186,20 +186,20 @@
   <div class="header-right">
     <span class="badge-total" id="total-badge">— items</span>
     <span class="mode-pill view" id="mode-pill">View</span>
-    <button class="btn admin-only danger" onclick="confirmDeleteOutOfStock()">Delete out-of-stock</button>
-    <button class="btn admin-only primary" onclick="exportData()" title="Download save file">⬇ Export save</button>
-    <label class="btn admin-only" title="Load a previously exported save file" style="cursor:pointer">⬆ Import save<input type="file" accept=".json" style="display:none" onchange="importData(event)"></label>
-    <button class="btn admin-only" onclick="exitAdmin()">Exit Admin</button>
-    <button class="btn" id="admin-btn" onclick="showAdminModal()">Admin</button>
+    <button class="btn admin-only danger" id="btn-delete-oos">Delete out-of-stock</button>
+    <button class="btn admin-only primary" id="btn-export" title="Download save file">⬇ Export save</button>
+    <label class="btn admin-only" title="Load a previously exported save file" style="cursor:pointer">⬆ Import save<input type="file" accept=".json" style="display:none" id="import-input"></label>
+    <button class="btn admin-only" id="btn-exit-admin">Exit Admin</button>
+    <button class="btn" id="admin-btn">Admin</button>
   </div>
 </header>
 
 <div class="toolbar">
   <div class="search-wrap">
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-    <input type="search" id="search" placeholder="Search cards…" oninput="renderAll()">
+    <input type="search" id="search" placeholder="Search cards…">
   </div>
-  <select id="stock-filter" onchange="renderAll()">
+  <select id="stock-filter">
     <option value="all">All items</option>
     <option value="instock">In stock</option>
     <option value="out">Out of stock</option>
@@ -220,8 +220,8 @@
     <h2 id="confirm-title">Delete item?</h2>
     <p id="confirm-msg">This will permanently remove this item from the catalog.</p>
     <div class="modal-btns">
-      <button class="btn" onclick="hideConfirm()">Cancel</button>
-      <button class="btn danger" id="confirm-ok-btn" onclick="confirmOk()">Delete</button>
+      <button class="btn" id="btn-confirm-cancel">Cancel</button>
+      <button class="btn danger" id="confirm-ok-btn">Delete</button>
     </div>
   </div>
 </div>
@@ -234,10 +234,10 @@
     <div class="img-modal-actions">
       <label class="btn primary admin-only" id="img-upload-label" style="cursor:pointer">
         📷 Upload image
-        <input type="file" id="img-file-input" accept="image/*" style="display:none" onchange="handleImageUpload(event)">
+        <input type="file" id="img-file-input" accept="image/*" style="display:none">
       </label>
-      <button class="btn danger admin-only hidden" id="img-remove-btn" onclick="removeImage()">Remove</button>
-      <button class="btn" onclick="hideImgModal()">Close</button>
+      <button class="btn danger admin-only hidden" id="img-remove-btn">Remove</button>
+      <button class="btn" id="btn-img-close">Close</button>
     </div>
   </div>
 </div>
@@ -246,11 +246,11 @@
   <div class="modal">
     <h2>Admin access</h2>
     <p>Enter the admin password to edit stock quantities.</p>
-    <input type="password" id="pw-input" placeholder="Password" onkeydown="if(event.key==='Enter')checkPw()">
+    <input type="password" id="pw-input" placeholder="Password">
     <p class="error-msg" id="pw-error">Incorrect password.</p>
     <div class="modal-btns">
-      <button class="btn" onclick="hideModal()">Cancel</button>
-      <button class="btn primary" onclick="checkPw()">Enter</button>
+      <button class="btn" id="btn-pw-cancel">Cancel</button>
+      <button class="btn primary" id="btn-pw-enter">Enter</button>
     </div>
   </div>
 </div>
@@ -266,8 +266,8 @@
     <input type="number" id="add-item-qty" value="0" min="0">
     <div class="add-error" id="add-item-error"></div>
     <div class="modal-btns" style="margin-top:1.25rem">
-      <button class="btn" onclick="hideAddItemModal()">Cancel</button>
-      <button class="btn primary" onclick="submitAddItem()">Add card</button>
+      <button class="btn" id="btn-add-cancel">Cancel</button>
+      <button class="btn primary" id="btn-add-submit">Add card</button>
     </div>
   </div>
 </div>
@@ -744,17 +744,18 @@ function renderAll() {
 
 function buildCatFilters() {
   const wrap = document.getElementById('cat-filters');
-  let html = `<button class="filter-btn active" data-cat="all" onclick="setFilter(this,'all')">All</button>`;
+  let html = `<button class="filter-btn active" data-cat="all">All</button>`;
   for (const cat of Object.keys(CATALOG)) {
-    html += `<button class="filter-btn" data-cat="${cat}" onclick="setFilter(this,'${cat}')">${cat}</button>`;
+    html += `<button class="filter-btn" data-cat="${cat}">${cat}</button>`;
   }
   wrap.innerHTML = html;
-}
-
-function setFilter(btn, cat) {
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  renderAll();
+  wrap.addEventListener('click', function(e) {
+    const btn = e.target.closest('.filter-btn');
+    if (!btn) return;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderAll();
+  });
 }
 
 function showAdminModal() {
@@ -796,11 +797,31 @@ function exitAdmin() {
   renderAll();
 }
 
-document.getElementById('modal').addEventListener('click', function(e) {
-  if (e.target === this) hideModal();
-});
+// ── Event listeners (replaces all inline onclick/oninput/onchange) ────────────
+document.getElementById('admin-btn').addEventListener('click', showAdminModal);
+document.getElementById('btn-pw-cancel').addEventListener('click', hideModal);
+document.getElementById('btn-pw-enter').addEventListener('click', checkPw);
+document.getElementById('pw-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkPw(); });
+document.getElementById('btn-exit-admin').addEventListener('click', exitAdmin);
+document.getElementById('btn-export').addEventListener('click', exportData);
+document.getElementById('import-input').addEventListener('change', importData);
+document.getElementById('btn-delete-oos').addEventListener('click', confirmDeleteOutOfStock);
+document.getElementById('btn-confirm-cancel').addEventListener('click', hideConfirm);
+document.getElementById('confirm-ok-btn').addEventListener('click', confirmOk);
+document.getElementById('btn-img-close').addEventListener('click', hideImgModal);
+document.getElementById('img-remove-btn').addEventListener('click', removeImage);
+document.getElementById('img-file-input').addEventListener('change', handleImageUpload);
+document.getElementById('btn-add-cancel').addEventListener('click', hideAddItemModal);
+document.getElementById('btn-add-submit').addEventListener('click', submitAddItem);
+document.getElementById('add-item-name').addEventListener('keydown', e => { if (e.key === 'Enter') submitAddItem(); });
+document.getElementById('search').addEventListener('input', renderAll);
+document.getElementById('stock-filter').addEventListener('change', renderAll);
+document.getElementById('modal').addEventListener('click', e => { if (e.target === document.getElementById('modal')) hideModal(); });
+document.getElementById('confirm-modal').addEventListener('click', e => { if (e.target === document.getElementById('confirm-modal')) hideConfirm(); });
+document.getElementById('img-modal').addEventListener('click', e => { if (e.target === document.getElementById('img-modal')) hideImgModal(); });
+document.getElementById('add-item-modal').addEventListener('click', e => { if (e.target === document.getElementById('add-item-modal')) hideAddItemModal(); });
 
-// ── Delete logic ──────────────────────────────────────────────────────────────
+// ── Delete logic
 let _pendingAction = null;
 
 function confirmDeleteItem(key, displayName) {
@@ -1025,39 +1046,7 @@ document.getElementById('content').addEventListener('click', function(e) {
   }
 });
 
-document.getElementById('confirm-modal').addEventListener('click', function(e) {
-  if (e.target === this) hideConfirm();
-});
-document.getElementById('img-modal').addEventListener('click', function(e) {
-  if (e.target === this) hideImgModal();
-});
-document.getElementById('add-item-modal').addEventListener('click', function(e) {
-  if (e.target === this) hideAddItemModal();
-});
-document.getElementById('add-item-name').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') submitAddItem();
-});
-
-
 initStock();
-
-// Expose functions used by inline HTML event handlers (required for type="module" scope)
-window.showAdminModal = showAdminModal;
-window.hideModal = hideModal;
-window.checkPw = checkPw;
-window.exitAdmin = exitAdmin;
-window.exportData = exportData;
-window.importData = importData;
-window.confirmDeleteOutOfStock = confirmDeleteOutOfStock;
-window.hideConfirm = hideConfirm;
-window.confirmOk = confirmOk;
-window.hideImgModal = hideImgModal;
-window.removeImage = removeImage;
-window.handleImageUpload = handleImageUpload;
-window.hideAddItemModal = hideAddItemModal;
-window.submitAddItem = submitAddItem;
-window.setFilter = setFilter;
-window.renderAll = renderAll;
 </script>
 </body>
 </html>
