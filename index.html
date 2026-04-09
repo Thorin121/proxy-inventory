@@ -158,19 +158,10 @@
   .add-error { font-size: 12px; color: var(--red); margin-top: 8px; min-height: 16px; }
 
   .hidden { display: none !important; }
-
-  /* Loading overlay */
   .loading-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; gap: 14px; }
   .loading-spinner { width: 34px; height: 34px; border: 3px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.75s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .loading-text { font-size: 13px; color: var(--text2); }
-  /* Setup banner */
-  .setup-banner { background: var(--amber-bg); border: 1px solid var(--amber); border-radius: 10px; padding: 16px 20px; margin: 1.25rem 2rem; font-size: 13px; line-height: 1.8; color: var(--text); }
-  .setup-banner strong { color: var(--amber); display: block; margin-bottom: 4px; font-size: 14px; }
-  .setup-banner code { background: var(--bg3); padding: 1px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; }
-  .setup-banner a { color: var(--accent2); }
-  .cloud-error-bar { background: var(--red-bg); border: 1px solid var(--red); border-radius: 8px; padding: 8px 14px; margin: 0.75rem 2rem; font-size: 13px; color: var(--red); }
-
   @media (max-width: 600px) {
     .site-header { padding: 0 1rem; }
     .toolbar { padding: 1rem; }
@@ -183,28 +174,12 @@
     .header-right { gap: 6px; }
   }
 </style>
-<!-- Firebase SDK -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-  window._firebaseModules = { initializeApp, getDatabase, ref, onValue, set };
-</script>
 </head>
 <body class="view-mode">
-
 <div class="loading-overlay" id="loading-overlay">
   <div class="loading-spinner"></div>
   <div class="loading-text">Loading shared inventory…</div>
 </div>
-
-<div class="setup-banner hidden" id="setup-banner">
-  <strong>⚙ One-time Firebase setup required</strong>
-  1. Go to <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> → Add project (free Spark plan) → Continue through setup<br>
-  2. In the left sidebar: <em>Build → Realtime Database → Create database</em> → choose any region → start in <strong>test mode</strong><br>
-  3. Click the ⚙ gear icon → <em>Project settings</em> → scroll to "Your apps" → click &lt;/&gt; Web → register app → copy the <code>firebaseConfig</code> object<br>
-  4. Open this HTML file in a text editor, find <code>PASTE_YOUR_FIREBASE_CONFIG_HERE</code> near the top of the &lt;script&gt; block, and replace it with your config object
-</div>
-<div class="cloud-error-bar hidden" id="cloud-error-bar"></div>
 
 <header class="site-header">
   <h1>🃏 Proxy Card Inventory</h1>
@@ -297,13 +272,15 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
 const ADMIN_PW = "proxy2024";
 
 // ── Firebase config ───────────────────────────────────────────────────────────
-// Replace the object below with your own firebaseConfig from the Firebase console.
-// See the yellow setup banner on the page for step-by-step instructions.
-const firebaseConfig = {
+// Replace this object with your own firebaseConfig from the Firebase console.
+const FIREBASE_CONFIG = {
   apiKey: "AIzaSyC57zp_-GwzHucw6vS2n53BXp4DKLFSIQM",
   authDomain: "alpha-rarities-proxy-list.firebaseapp.com",
   databaseURL: "https://alpha-rarities-proxy-list-default-rtdb.firebaseio.com",
@@ -313,57 +290,17 @@ const firebaseConfig = {
   appId: "1:270778746480:web:ea62e3400986cd0af456b5"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-// Example of what it should look like once filled in:
-// const FIREBASE_CONFIG = {
-//   apiKey: "AIza...",
-//   authDomain: "your-project.firebaseapp.com",
-//   databaseURL: "https://your-project-default-rtdb.firebaseio.com",
-//   projectId: "your-project",
-//   storageBucket: "your-project.appspot.com",
-//   messagingSenderId: "123456789",
-//   appId: "1:123456789:web:abc123"
-// };
+const app = initializeApp(FIREBASE_CONFIG);
+const db = getDatabase(app);
+const dbRef = ref(db, 'inventory');
 
-let _db = null;
-let _dbRef = null;
 let _saveTimer = null;
-let _fbReady = false;
 
-function initFirebase() {
-  if (typeof FIREBASE_CONFIG === 'string') {
-    document.getElementById('setup-banner').classList.remove('hidden');
-    document.getElementById('loading-overlay').classList.add('hidden');
-    return false;
-  }
-  try {
-    const { initializeApp, getDatabase, ref, onValue } = window._firebaseModules;
-    const app = initializeApp(FIREBASE_CONFIG);
-    _db = getDatabase(app);
-    _dbRef = ref(_db, 'inventory');
-    _fbReady = true;
-    return true;
-  } catch(e) {
-    showCloudError('Firebase init failed: ' + e.message + ' — check your config.');
-    document.getElementById('loading-overlay').classList.add('hidden');
-    return false;
-  }
-}
-
-function showCloudError(msg) {
-  const el = document.getElementById('cloud-error-bar');
-  el.textContent = '⚠ ' + msg;
-  el.classList.remove('hidden');
-}
-
-async function saveToStorage() {
-  if (!_fbReady) return;
+function saveToStorage() {
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(async () => {
     try {
-      const { set } = window._firebaseModules;
-      await set(_dbRef, {
+      await set(dbRef, {
         stock,
         cardImages,
         deletedKeys: [...deletedKeys],
@@ -374,9 +311,32 @@ async function saveToStorage() {
       t.classList.add('show');
       setTimeout(() => t.classList.remove('show'), 2000);
     } catch(e) {
-      showCloudError('Save failed: ' + e.message);
+      console.error('Save failed:', e);
     }
   }, 1200);
+}
+
+function initStock() {
+  onValue(dbRef, (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      stock = data.stock || {};
+      cardImages = data.cardImages || {};
+      deletedKeys = new Set(data.deletedKeys || []);
+      customItems = data.customItems || {};
+    }
+    for (const item of allItems()) {
+      if (!(item.key in stock)) stock[item.key] = 0;
+    }
+    document.getElementById('loading-overlay').classList.add('hidden');
+    buildCatFilters();
+    updateStats();
+    renderAll();
+  }, (error) => {
+    console.error('Firebase error:', error);
+    document.getElementById('loading-overlay').innerHTML =
+      `<div style="color:var(--red);padding:2rem;text-align:center">⚠ Could not connect to database.<br><small style="color:var(--text2)">${error.message}</small></div>`;
+  });
 }
 
 let cardImages = {};
@@ -561,51 +521,7 @@ function allItems() {
   return arr;
 }
 
-function initStock() {
-  if (!initFirebase()) {
-    // Firebase not configured — fall back to blank state so page still renders
-    for (const item of allItems()) {
-      if (!(item.key in stock)) stock[item.key] = 0;
-    }
-    buildCatFilters();
-    updateStats();
-    renderAll();
-    return;
-  }
-
-  const { onValue } = window._firebaseModules;
-
-  // onValue fires once immediately (initial load) then on every remote change
-  onValue(_dbRef, (snapshot) => {
-    const data = snapshot.val();
-    if (data) {
-      stock = data.stock || {};
-      cardImages = data.cardImages || {};
-      deletedKeys = new Set(data.deletedKeys || []);
-      customItems = data.customItems || {};
-    }
-    // Ensure all catalog items exist in stock
-    for (const item of allItems()) {
-      if (!(item.key in stock)) stock[item.key] = 0;
-    }
-    document.getElementById('loading-overlay').classList.add('hidden');
-    buildCatFilters();
-    updateStats();
-    renderAll();
-  }, (error) => {
-    showCloudError('Could not connect to database: ' + error.message);
-    document.getElementById('loading-overlay').classList.add('hidden');
-  });
-}
-
-function saveToStorage() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(stock));
-    localStorage.setItem(IMG_STORAGE_KEY, JSON.stringify(cardImages));
-    localStorage.setItem(DEL_STORAGE_KEY, JSON.stringify([...deletedKeys]));
-    localStorage.setItem(CUSTOM_STORAGE_KEY, JSON.stringify(customItems));
-  } catch(e) {}
-}
+// initStock and saveToStorage defined above with Firebase
 
 function exportData() {
   const data = {
