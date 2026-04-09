@@ -1039,6 +1039,25 @@ document.getElementById('add-item-name').addEventListener('keydown', function(e)
 });
 
 
-initStock();</script>
+initStock();
+
+// Expose functions used by inline HTML event handlers (required for type="module" scope)
+window.showAdminModal = showAdminModal;
+window.hideModal = hideModal;
+window.checkPw = checkPw;
+window.exitAdmin = exitAdmin;
+window.exportData = exportData;
+window.importData = importData;
+window.confirmDeleteOutOfStock = confirmDeleteOutOfStock;
+window.hideConfirm = hideConfirm;
+window.confirmOk = confirmOk;
+window.hideImgModal = hideImgModal;
+window.removeImage = removeImage;
+window.handleImageUpload = handleImageUpload;
+window.hideAddItemModal = hideAddItemModal;
+window.submitAddItem = submitAddItem;
+window.setFilter = setFilter;
+window.renderAll = renderAll;
+</script>
 </body>
 </html>
