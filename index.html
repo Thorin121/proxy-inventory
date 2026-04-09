@@ -290,7 +290,7 @@ const firebaseConfig = {
   appId: "1:270778746480:web:ea62e3400986cd0af456b5"
 };
 
-const app = initializeApp(FIREBASE_CONFIG);
+const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const dbRef = ref(db, 'inventory');
 
