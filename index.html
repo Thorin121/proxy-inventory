@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proxy Card Inventory</title>
+<style>
+  :root {
+    --bg: #0f0f13;
+    --bg2: #17171e;
+    --bg3: #1e1e28;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #e8e6f0;
+    --text2: #9d9bb0;
+    --text3: #5e5c70;
+    --accent: #7f77dd;
+    --accent2: #afa9ec;
+    --accent-bg: rgba(127,119,221,0.12);
+    --green: #1d9e75;
+    --green-bg: rgba(29,158,117,0.12);
+    --amber: #ef9f27;
+    --amber-bg: rgba(239,159,39,0.1);
+    --red: #e24b4a;
+    --red-bg: rgba(226,75,74,0.1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
+
+  /* Header */
+  .site-header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 0 1.25rem; display: flex; align-items: center; justify-content: space-between; min-height: 60px; position: sticky; top: 0; z-index: 100; flex-wrap: wrap; gap: 8px; }
+  .site-header h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; color: var(--text); white-space: nowrap; padding: 10px 0; }
+  .header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 0; }
+  .badge-total { background: var(--accent-bg); color: var(--accent2); font-size: 12px; padding: 4px 10px; border-radius: 20px; font-weight: 500; white-space: nowrap; }
+  .btn { padding: 7px 12px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid var(--border2); background: transparent; color: var(--text2); transition: all 0.15s; white-space: nowrap; }
+  .btn:hover { background: var(--bg3); color: var(--text); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: #9189e8; }
+  .btn.danger { color: var(--red); border-color: var(--red-bg); }
+  .btn.danger:hover { background: var(--red-bg); }
+
+  /* Search + filter bar */
+  .toolbar { padding: 1.25rem 2rem; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .search-wrap { position: relative; flex: 1; min-width: 200px; }
+  .search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.4; }
+  input[type=search], input[type=text], input[type=number], select {
+    background: var(--bg2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; font-size: 13px; outline: none; transition: border 0.15s;
+  }
+  input[type=search] { width: 100%; padding: 8px 10px 8px 34px; }
+  input[type=text], input[type=number] { padding: 6px 10px; }
+  input[type=number] { width: 70px; text-align: center; }
+  select { padding: 8px 10px; cursor: pointer; }
+  input:focus, select:focus { border-color: var(--accent); }
+  .filter-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filter-btn { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text2); transition: all 0.15s; white-space: nowrap; }
+  .filter-btn:hover { border-color: var(--border2); color: var(--text); }
+  .filter-btn.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent2); }
+
+  /* Layout */
+  .main { padding: 0 2rem 3rem; }
+  .section { margin-bottom: 2.5rem; }
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+  .section-title { font-size: 20px; font-weight: 600; color: var(--text); }
+  .section-count { font-size: 12px; color: var(--text3); background: var(--bg3); padding: 3px 8px; border-radius: 10px; }
+  .section-stock { font-size: 12px; color: var(--green); background: var(--green-bg); padding: 3px 8px; border-radius: 10px; }
+  .subsection { margin-bottom: 1.5rem; }
+  .subsection-title { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.75rem; padding-left: 2px; }
+
+  /* Card grid */
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; transition: border-color 0.15s; }
+  .card:hover { border-color: var(--border2); }
+  .card.out-of-stock { opacity: 0.45; }
+  .card-name { font-size: 13px; color: var(--text); line-height: 1.4; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-name span.ext { font-size: 11px; color: var(--text3); margin-left: 4px; }
+
+  /* Stock control */
+  .stock-display { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .stock-num { font-size: 15px; font-weight: 600; min-width: 28px; text-align: center; color: var(--text); }
+  .stock-num.zero { color: var(--text3); }
+  .stock-num.low { color: var(--amber); }
+  .stock-num.good { color: var(--green); }
+  .stepper { display: flex; gap: 4px; }
+  .step-btn { width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg3); color: var(--text2); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.12s; line-height: 1; }
+  .step-btn:hover { border-color: var(--accent); color: var(--accent2); background: var(--accent-bg); }
+  .step-btn:active { transform: scale(0.92); }
+
+  /* Admin mode */
+  body.view-mode .stepper { display: none; }
+  body.view-mode .stock-num { font-size: 16px; }
+  body.view-mode .admin-only { display: none; }
+
+  /* Stats bar */
+  .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-bottom: 1.75rem; }
+  .stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .stat-value { font-size: 22px; font-weight: 600; color: var(--text); }
+  .stat-value.accent { color: var(--accent2); }
+  .stat-value.green { color: var(--green); }
+  .stat-value.amber { color: var(--amber); }
+
+  /* Mode indicator */
+  .mode-pill { font-size: 11px; padding: 3px 8px; border-radius: 10px; font-weight: 600; }
+  .mode-pill.admin { background: var(--amber-bg); color: var(--amber); }
+  .mode-pill.view { background: var(--green-bg); color: var(--green); }
+
+  /* Password modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 999; }
+  .modal { background: var(--bg2); border: 1px solid var(--border2); border-radius: 14px; padding: 2rem; min-width: 320px; max-width: 400px; width: 90%; }
+  .modal h2 { font-size: 17px; font-weight: 600; margin-bottom: 0.5rem; }
+  .modal p { font-size: 13px; color: var(--text2); margin-bottom: 1.25rem; }
+  .modal input { width: 100%; padding: 10px 12px; border-radius: 8px; font-size: 14px; margin-bottom: 10px; }
+  .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+  .error-msg { font-size: 12px; color: var(--red); margin-bottom: 8px; display: none; }
+
+  /* Save indicator */
+  .save-toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--bg2); border: 1px solid var(--green); color: var(--green); font-size: 13px; padding: 8px 16px; border-radius: 8px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200; }
+  .save-toast.show { opacity: 1; }
+
+  /* Delete button */
+  .delete-btn { width: 24px; height: 24px; border-radius: 6px; border: 1px solid transparent; background: transparent; color: var(--text3); font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.12s; flex-shrink: 0; padding: 0; }
+  .delete-btn:hover { border-color: var(--red-bg); color: var(--red); background: var(--red-bg); }
+  body.view-mode .delete-btn { display: none; }
+
+  /* Image thumbnail on card */
+  .card-img-thumb { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; border: 1px solid var(--border2); flex-shrink: 0; cursor: pointer; }
+  .card-img-placeholder { width: 36px; height: 36px; border-radius: 6px; border: 1px dashed var(--border2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; color: var(--text3); font-size: 14px; }
+  .card-img-placeholder:hover { border-color: var(--accent); color: var(--accent2); background: var(--accent-bg); }
+  body.view-mode .card-img-placeholder { display: none; }
+  body.view-mode .card-img-thumb { cursor: default; }
+
+  /* Image lightbox / preview modal */
+  .img-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+  .img-modal-inner { position: relative; max-width: 90vw; max-height: 90vh; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .img-modal-inner img { max-width: 100%; max-height: 80vh; border-radius: 10px; object-fit: contain; border: 1px solid var(--border2); }
+  .img-modal-title { font-size: 13px; color: var(--text2); text-align: center; }
+  .img-modal-actions { display: flex; gap: 8px; }
+
+  /* Confirm delete modal */
+  .confirm-modal { background: var(--bg2); border: 1px solid var(--border2); border-radius: 14px; padding: 1.5rem; min-width: 300px; max-width: 360px; width: 90%; }
+  .confirm-modal h2 { font-size: 16px; font-weight: 600; margin-bottom: 0.5rem; }
+  .confirm-modal p { font-size: 13px; color: var(--text2); margin-bottom: 1.25rem; line-height: 1.5; }
+
+
+  /* Add item button inline in subsection title */
+  .add-item-btn { margin-left: 8px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent-bg); color: var(--accent2); font-size: 11px; font-weight: 600; cursor: pointer; vertical-align: middle; transition: all 0.15s; }
+  .add-item-btn:hover { background: var(--accent); color: #fff; }
+  body.view-mode .add-item-btn { display: none; }
+
+  /* Add item modal */
+  .add-modal { background: var(--bg2); border: 1px solid var(--border2); border-radius: 14px; padding: 1.5rem; min-width: 320px; max-width: 420px; width: 92%; }
+  .add-modal h2 { font-size: 16px; font-weight: 600; margin-bottom: 0.25rem; }
+  .add-modal .section-label { font-size: 12px; color: var(--accent2); margin-bottom: 1rem; }
+  .add-modal label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 4px; margin-top: 12px; }
+  .add-modal input[type=text], .add-modal input[type=number] { width: 100%; padding: 8px 10px; font-size: 14px; }
+  .add-modal input[type=number] { width: 80px; text-align: center; }
+  .add-error { font-size: 12px; color: var(--red); margin-top: 8px; min-height: 16px; }
+
+  .hidden { display: none !important; }
+  .loading-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; gap: 14px; }
+  .loading-spinner { width: 34px; height: 34px; border: 3px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.75s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 13px; color: var(--text2); }
+  @media (max-width: 600px) {
+    .site-header { padding: 0 1rem; }
+    .toolbar { padding: 1rem; }
+    .main { padding: 0 1rem 3rem; }
+    .card-grid { grid-template-columns: 1fr; }
+    .btn { padding: 6px 10px; font-size: 12px; }
+    .confirm-modal, .modal { min-width: unset; width: 94vw; padding: 1.25rem; }
+    .img-modal-inner { max-width: 96vw; }
+    .stats-bar { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); }
+    .header-right { gap: 6px; }
+  }
+</style>
+</head>
+<body class="view-mode">
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Loading shared inventory…</div>
+</div>
+
+<header class="site-header">
+  <h1>🃏 Proxy Card Inventory</h1>
+  <div class="header-right">
+    <span class="badge-total" id="total-badge">— items</span>
+    <span class="mode-pill view" id="mode-pill">View</span>
+    <button class="btn admin-only danger" onclick="confirmDeleteOutOfStock()">Delete out-of-stock</button>
+    <button class="btn admin-only primary" onclick="exportData()" title="Download save file">⬇ Export save</button>
+    <label class="btn admin-only" title="Load a previously exported save file" style="cursor:pointer">⬆ Import save<input type="file" accept=".json" style="display:none" onchange="importData(event)"></label>
+    <button class="btn admin-only" onclick="exitAdmin()">Exit Admin</button>
+    <button class="btn" id="admin-btn" onclick="showAdminModal()">Admin</button>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="search-wrap">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    <input type="search" id="search" placeholder="Search cards…" oninput="renderAll()">
+  </div>
+  <select id="stock-filter" onchange="renderAll()">
+    <option value="all">All items</option>
+    <option value="instock">In stock</option>
+    <option value="out">Out of stock</option>
+  </select>
+  <div class="filter-btns" id="cat-filters"></div>
+</div>
+
+<div class="main">
+  <div class="stats-bar" id="stats-bar"></div>
+  <div id="content"></div>
+</div>
+
+<div class="save-toast" id="toast">✓ Saved</div>
+
+<!-- Confirm delete modal -->
+<div class="modal-overlay hidden" id="confirm-modal">
+  <div class="confirm-modal">
+    <h2 id="confirm-title">Delete item?</h2>
+    <p id="confirm-msg">This will permanently remove this item from the catalog.</p>
+    <div class="modal-btns">
+      <button class="btn" onclick="hideConfirm()">Cancel</button>
+      <button class="btn danger" id="confirm-ok-btn" onclick="confirmOk()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Image viewer / uploader modal -->
+<div class="modal-overlay hidden" id="img-modal">
+  <div class="img-modal-inner">
+    <div class="img-modal-title" id="img-modal-title"></div>
+    <img id="img-modal-img" src="" alt="Card image" style="display:none">
+    <div class="img-modal-actions">
+      <label class="btn primary admin-only" id="img-upload-label" style="cursor:pointer">
+        📷 Upload image
+        <input type="file" id="img-file-input" accept="image/*" style="display:none" onchange="handleImageUpload(event)">
+      </label>
+      <button class="btn danger admin-only hidden" id="img-remove-btn" onclick="removeImage()">Remove</button>
+      <button class="btn" onclick="hideImgModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="modal">
+  <div class="modal">
+    <h2>Admin access</h2>
+    <p>Enter the admin password to edit stock quantities.</p>
+    <input type="password" id="pw-input" placeholder="Password" onkeydown="if(event.key==='Enter')checkPw()">
+    <p class="error-msg" id="pw-error">Incorrect password.</p>
+    <div class="modal-btns">
+      <button class="btn" onclick="hideModal()">Cancel</button>
+      <button class="btn primary" onclick="checkPw()">Enter</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add card modal -->
+<div class="modal-overlay hidden" id="add-item-modal">
+  <div class="add-modal">
+    <h2>Add card to catalog</h2>
+    <div class="section-label" id="add-item-section-label"></div>
+    <label for="add-item-name">Card name (filename)</label>
+    <input type="text" id="add-item-name" placeholder="e.g. Sol Ring.png" autocomplete="off">
+    <label for="add-item-qty">Starting quantity</label>
+    <input type="number" id="add-item-qty" value="0" min="0">
+    <div class="add-error" id="add-item-error"></div>
+    <div class="modal-btns" style="margin-top:1.25rem">
+      <button class="btn" onclick="hideAddItemModal()">Cancel</button>
+      <button class="btn primary" onclick="submitAddItem()">Add card</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const ADMIN_PW = "proxy2024";
+
+// ── Firebase config ───────────────────────────────────────────────────────────
+// Replace this object with your own firebaseConfig from the Firebase console.
+const firebaseConfig = {
+  apiKey: "AIzaSyC57zp_-GwzHucw6vS2n53BXp4DKLFSIQM",
+  authDomain: "alpha-rarities-proxy-list.firebaseapp.com",
+  databaseURL: "https://alpha-rarities-proxy-list-default-rtdb.firebaseio.com",
+  projectId: "alpha-rarities-proxy-list",
+  storageBucket: "alpha-rarities-proxy-list.firebasestorage.app",
+  messagingSenderId: "270778746480",
+  appId: "1:270778746480:web:ea62e3400986cd0af456b5"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const dbRef = ref(db, 'inventory');
+
+let _saveTimer = null;
+
+function saveToStorage() {
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(async () => {
+    try {
+      await set(dbRef, {
+        stock,
+        cardImages,
+        deletedKeys: [...deletedKeys],
+        customItems
+      });
+      const t = document.getElementById('toast');
+      t.textContent = '✓ Saved';
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2000);
+    } catch(e) {
+      console.error('Save failed:', e);
+    }
+  }, 1200);
+}
+
+function initStock() {
+  onValue(dbRef, (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      stock = data.stock || {};
+      cardImages = data.cardImages || {};
+      deletedKeys = new Set(data.deletedKeys || []);
+      customItems = data.customItems || {};
+    }
+    for (const item of allItems()) {
+      if (!(item.key in stock)) stock[item.key] = 0;
+    }
+    document.getElementById('loading-overlay').classList.add('hidden');
+    buildCatFilters();
+    updateStats();
+    renderAll();
+  }, (error) => {
+    console.error('Firebase error:', error);
+    document.getElementById('loading-overlay').innerHTML =
+      `<div style="color:var(--red);padding:2rem;text-align:center">⚠ Could not connect to database.<br><small style="color:var(--text2)">${error.message}</small></div>`;
+  });
+}
+
+let cardImages = {};
+let deletedKeys = new Set();
+
+const CATALOG = {
+  "Artifact Creatures": { sub: false, items: [
+    "Altar Golem (Fullart, Masterpiece) [EVE] {166}.png","AltarGolem.jpg",
+    "BirgiGodOfStorytellingBackside.png","BirgiGodOfStorytellingFrontside.png",
+    "Cityscape Leveler (Fullart, Masterpiece) [BRO] {233}.jpg",
+    "Combustible Gearhulk (Fullart, Masterpiece) [MPS] {4}.png",
+    "Crystalline Crawler (Fullart, Masterpiece) [C16] {54}.jpg","CrystallineCrawler.png",
+    "Duplicant (Fullart, Masterpiece) [CM1] {7}.jpg","Duplicant.png",
+    "Iron Myr (Fullart, Masterpiece) [SOM] {168}.jpg",
+    "Maelstrom Colossus (Fullart, Masterpiece) [J25] {754}.jpg",
+    "Meteor Golem (Fullart, Masterpiece) [MOC] {363}.jpg","MeteorGolem.jpg",
+    "Myr Battlesphere (Fullart, Masterpiece) [C14] {254}.jpg","RMSTitanic.jpg",
+    "Roaming Throne (Fullart, Masterpiece) [LCI] {258}.jpg","RoamingThrone.png","RoamingThroneFullart.png",
+    "Sandstone Oracle (Fullart, Masterpiece) [CMM] {406}.jpg",
+    "Skitterbeam Battalion (Normal) [BRO] {165}.jpg",
+    "Solemn Simulacrum (Fullart, Masterpiece) [C16] {273}.jpg","SolemnSimulacrum.jpg","SolemnSimulacrumFullart.jpg","SolemnSimulacrumMasterpiece.jpg",
+    "Threefold Thunderhulk (Fullart, Masterpiece) [LCI] {265}.png"
+  ]},
+  "Colored Artifacts": { sub: false, items: [
+    "BirgiGodOfStorytellingBackside.png","BirgiGodOfStorytellingFrontside.png",
+    "Bolas's Citadel (Fullart, Masterpiece) [PWAR] {79}.jpg","Bolas'sCitadel.png","Bolas'sCitadelWhiteBorder.png",
+    "Combustible Gearhulk (Fullart, Masterpiece) [MPS] {4}.png",
+    "Cursed Mirror (Fullart, Masterpiece) [C21] {50}.jpg",
+    "Iron Myr (Fullart, Masterpiece) [SOM] {168}.jpg",
+    "Meteoric Mace (Fullart, Masterpiece) [MH3] {283}.jpg",
+    "Skitterbeam Battalion (Normal) [BRO] {165}.jpg","TheFireCrystal.jpg"
+  ]},
+  "Colorless Artifacts": { sub: false, items: [
+    "Akroma's Memorial (Fullart, Masterpiece) [SPG] {81}.jpg","ArcaneSignet.png","ArcaneSignetMB2.png",
+    "Caged Sun (Fullart, Masterpiece) [40K] {231}.jpg","Chimil, the Inner Sun (Fullart, Masterpiece) [LCC] {106}.jpg",
+    "Chromatic Orrery (Fullart, Masterpiece) [PM21] {228}.jpg","Cloud Key (Fullart, Masterpiece) [BRR] {75}.jpg","CloudKey.jpg",
+    "Cloudstone Curio (Fullart, Masterpiece) [MPS] {10}.jpg","Conjurer's Closet (Fullart, Masterpiece) [INR] {321}.jpg",
+    "Coveted Jewel (Fullart, Masterpiece) [SCD] {262}.jpg","Darksteel Monolith (Fullart, Masterpiece) [CMM] {778}.jpg",
+    "Emerald Medallion Fullart.png","Endless Atlas (Fullart, Masterpiece) [C18] {55}.jpg","ErraticPortal.jpg",
+    "Extraplanar Lens (Fullart, Masterpiece) [MPS] {38}.jpg","Fellwar Stone (Fullart, Masterpiece) [C16] {254}.jpg","FellwarStoneWhiteBorder.jpg",
+    "Gauntlet of Power (Fullart, Masterpiece) [MPS] {12}.jpg","Gilded Lotus (Fullart, Masterpiece) [M13] {206}.jpg",
+    "Helm of the Host (Fullart, Masterpiece) [BRR] {82}.jpg","Jet Medallion Fullart.png",
+    "Lightning Greaves (Fullart, Masterpiece) [MPS] {14}.png","LightningGreaves.png","LightningGreavesFullart.png","LightningGreavesMasterpiece.png","LightningGreavesMB2.png",
+    "ManaVault.png","ManaVaultEtched.png","ManaVaultFullart.png","ManaVaultMasterpiece.png",
+    "NexusOfBecoming.jpg","Panharmonicon.jpg","Pearl Medallion Fullart.png","Ruby Medallion Fullart.png","RubyMedallion.png","Sapphire Medallion Fullart.png",
+    "Mithril Coat (Fullart, Masterpiece) [LTR] {245}.jpg","Nexus of Becoming (Fullart, Masterpiece) [BIG] {55}.jpg",
+    "Panharmonicon (Fullart, Masterpiece) [KLD] {226}.jpg","Portal to Phyrexia (Fullart, Masterpiece) [BRO] {240}.jpg",
+    "Sceptre of Eternal Glory (Fullart, Masterpiece) [40K] {166}.jpg","Sculpting Steel (Fullart, Masterpiece) [MPS] {23}.jpg",
+    "Semblance Anvil (Fullart, Masterpiece) [SOM] {201}.jpg",
+    "SolRing.png","SolRingDwarven.png","SolRingElven.png","SolRingEtched.png","SolRingGalaxy.png","SolRingHuman.png","SolRingMasterpiece.png","SolRingMB2.png","SolRingRetro.png","SolRingRevised.png","SolRingShakespeare.png",
+    "Spine of Ish Sah (Fullart, Masterpiece) [C14] {272}.jpg","Strionic Resonator (Fullart, Masterpiece) [NCC] {381}.jpg",
+    "StrionicResonator.png","StrionicResonatorFullart.png",
+    "Sundial of the Infinite (Fullart, Masterpiece) [M12] {218}.jpg","SundialOfTheInfinite.jpg",
+    "The Endstone (Fullart, Masterpiece) [EOE] {240}.jpg","The One Ring (Fullart, Masterpiece) [LTR] {246}.png",
+    "TheOneRing.png","TheOneRingPoster.png",
+    "Thran Dynamo (Fullart, Masterpiece) [IMA] {230}.jpg","Throne of Eldraine (Fullart, Masterpiece) [WOC] {28}.png","ThroneOfEldraine.png",
+    "Urzas Incubator.png","Voyager Staff (Fullart, Masterpiece) [DDU] {64}.jpg"
+  ]},
+  "Masterpieces": { sub: false, items: [
+    "Arcane Signet (Fullart, Masterpiece) [P30M] {1}.jpg","Duplicant.png",
+    "Emerald Medallion (Fullart, Masterpiece) [TMP] {283}.jpg","Jet Medallion (Fullart, Masterpiece) [TMP] {292}.jpg",
+    "LightningGreavesMasterpiece.png","Lion's Eye Diamond (Fullart, Masterpiece) [MIR] {307}.jpg",
+    "Lotus Petal (Fullart, Masterpiece) [MPS] {15}.jpg","Mana Crypt (Fullart, Masterpiece) [MPS] {16}.jpg",
+    "Mana Vault (Fullart, Masterpiece) [MPS] {17}.jpg","ManaVaultMasterpiece.png",
+    "Mox Diamond (Fullart, Masterpiece) [V10] {10}.jpg","Mox Opal (Fullart, Masterpiece) [MPS] {19}.jpg",
+    "Pearl Medallion (Fullart, Masterpiece) [TMP] {300}.jpg","Roaming Throne (Fullart, Masterpiece) [PLCI] {258}.jpg",
+    "Ruby Medallion (Fullart, Masterpiece) [TMP] {305}.jpg","Sapphire Medallion (Fullart, Masterpiece) [TMP] {306}.jpg",
+    "Sol Ring (Fullart, Masterpiece) [MPS] {24}.jpg","Solemn Simulacrum (Fullart, Masterpiece) [MPS] {25}.jpg",
+    "SolemnSimulacrumMasterpiece.jpg","SolRingMasterpiece.png",
+    "The One Ring (Fullart, Masterpiece) [LTR] {380}.jpg"
+  ]},
+  "Silver Masterpieces": { sub: false, items: [
+    "Akroma's Memorial (Fullart, Masterpiece) [SPG] {81}.jpg","Altar Golem (Fullart, Masterpiece) [EVE] {166}.png",
+    "Bolas's Citadel (Fullart, Masterpiece) [PWAR] {79}.jpg","Caged Sun (Fullart, Masterpiece) [40K] {231}.jpg",
+    "Chimil, the Inner Sun (Fullart, Masterpiece) [LCC] {106}.jpg","Chromatic Orrery (Fullart, Masterpiece) [PM21] {228}.jpg",
+    "Cityscape Leveler (Fullart, Masterpiece) [BRO] {233}.jpg","Cloud Key (Fullart, Masterpiece) [BRR] {75}.jpg",
+    "Cloudstone Curio (Fullart, Masterpiece) [MPS] {10}.jpg","Combustible Gearhulk (Fullart, Masterpiece) [MPS] {4}.png",
+    "Conjurer's Closet (Fullart, Masterpiece) [INR] {321}.jpg","Coveted Jewel (Fullart, Masterpiece) [SCD] {262}.jpg",
+    "Crystalline Crawler (Fullart, Masterpiece) [C16] {54}.jpg","Cursed Mirror (Fullart, Masterpiece) [C21] {50}.jpg",
+    "Darksteel Monolith (Fullart, Masterpiece) [CMM] {778}.jpg","Duplicant (Fullart, Masterpiece) [CM1] {7}.jpg",
+    "Endless Atlas (Fullart, Masterpiece) [C18] {55}.jpg","Extraplanar Lens (Fullart, Masterpiece) [MPS] {38}.jpg",
+    "Fellwar Stone (Fullart, Masterpiece) [C16] {254}.jpg","Gauntlet of Power (Fullart, Masterpiece) [MPS] {12}.jpg",
+    "Gilded Lotus (Fullart, Masterpiece) [M13] {206}.jpg","Helm of the Host (Fullart, Masterpiece) [BRR] {82}.jpg",
+    "Iron Myr (Fullart, Masterpiece) [SOM] {168}.jpg","Lightning Greaves (Fullart, Masterpiece) [MPS] {14}.png",
+    "Maelstrom Colossus (Fullart, Masterpiece) [J25] {754}.jpg","Meteor Golem (Fullart, Masterpiece) [MOC] {363}.jpg",
+    "Meteoric Mace (Fullart, Masterpiece) [MH3] {283}.jpg","Mithril Coat (Fullart, Masterpiece) [LTR] {245}.jpg",
+    "Myr Battlesphere (Fullart, Masterpiece) [C14] {254}.jpg","Nexus of Becoming (Fullart, Masterpiece) [BIG] {55}.jpg",
+    "Panharmonicon (Fullart, Masterpiece) [KLD] {226}.jpg","Portal to Phyrexia (Fullart, Masterpiece) [BRO] {240}.jpg",
+    "Roaming Throne (Fullart, Masterpiece) [LCI] {258}.jpg","Sandstone Oracle (Fullart, Masterpiece) [CMM] {406}.jpg",
+    "Sceptre of Eternal Glory (Fullart, Masterpiece) [40K] {166}.jpg","Sculpting Steel (Fullart, Masterpiece) [MPS] {23}.jpg",
+    "Semblance Anvil (Fullart, Masterpiece) [SOM] {201}.jpg","Solemn Simulacrum (Fullart, Masterpiece) [C16] {273}.jpg",
+    "Spine of Ish Sah (Fullart, Masterpiece) [C14] {272}.jpg","Strionic Resonator (Fullart, Masterpiece) [NCC] {381}.jpg",
+    "Sundial of the Infinite (Fullart, Masterpiece) [M12] {218}.jpg","The Endstone (Fullart, Masterpiece) [EOE] {240}.jpg",
+    "The One Ring (Fullart, Masterpiece) [LTR] {246}.png","Thran Dynamo (Fullart, Masterpiece) [IMA] {230}.jpg",
+    "Threefold Thunderhulk (Fullart, Masterpiece) [LCI] {265}.png","Throne of Eldraine (Fullart, Masterpiece) [WOC] {28}.png",
+    "Voyager Staff (Fullart, Masterpiece) [DDU] {64}.jpg"
+  ]},
+  "Eldrazi": { sub: false, items: [
+    "Anticausal Vestige (Fullart) [EOE] {357}.jpg","Artisan of Kozilek (Fullart) [CMM] {801}.jpg",
+    "Emrakul, the Aeons Torn (Fullart) [ROE] {4}.jpg","Emrakul, the Promised End (Fullart) [EMN] {6}.jpg",
+    "Emrakul, the World Anew (Fullart) [MH3] {381}.jpg","It That Betrays (Fullart) [ROE] {7} OLD.jpg",
+    "It That Betrays (Fullart) [ROE] {7}.png","Kozilek, Butcher of Truth (Fullart) [ROE] {6}.jpg",
+    "Kozilek, the Broken Reality (Fullart) [MH3] {382}.jpg","Kozilek, the Great Distortion (Fullart) [OGW] {4}.jpg",
+    "Sire of Seven Deaths (Fullart) [FDN] {292} OLD.jpg","Sire of Seven Deaths (Fullart) [FDN] {292}.png",
+    "Ulamog, the Ceaseless Hunger (Fullart) [CMM] {5}.jpg","Ulamog, the Defiler (Fullart) [MH3] {383}.jpg",
+    "Ulamog, the Infinite Gyre (Fullart) [ROE] {12}.jpg","Void Winnower (Fullart) [BFZ] {17}.jpg",
+    "Zhulodok, Void Gorger (Fullart) [CMM] {752}.jpg"
+  ]},
+  "Mosaic Eldrazi": { sub: false, items: [
+    "Anticausal Vestige (Fullart) [EOE] {357}.jpg","Artisan of Kozilek (Fullart) [CMM] {801}.jpg",
+    "Emrakul, the Aeons Torn (Fullart) [ROE] {4}.jpg","Emrakul, the Promised End (Fullart) [EMN] {6}.jpg",
+    "Emrakul, the World Anew (Fullart) [MH3] {381}.jpg","It That Betrays (Fullart) [ROE] {7}.jpg",
+    "Kozilek, Butcher of Truth (Fullart) [ROE] {6}.jpg","Kozilek, the Broken Reality (Fullart) [MH3] {382}.jpg",
+    "Kozilek, the Great Distortion (Fullart) [OGW] {4}.jpg","Sire of Seven Deaths (Fullart) [FDN] {292}.jpg",
+    "Ulamog, the Ceaseless Hunger (Fullart) [CMM] {5}.jpg","Ulamog, the Defiler (Fullart) [MH3] {383}.jpg",
+    "Ulamog, the Infinite Gyre (Fullart) [ROE] {12}.jpg","Void Winnower Stained Glass.png",
+    "Zhulodok, Void Gorger SG (Fullart) [CMM] {752}.jpg"
+  ]},
+  "Lands": {
+    sub: true,
+    sections: {
+      "Bond Lands Retro": ["Bountiful Promenade.png","luxury suite.png","morphic pool.png","Rejuvenating Springs.png","sea of clouds.png","Spectator Seating.png","Spire Garden (Normal) [BBD] {85}.jpg","spire garden.png","Training Center.png","Undergrowth Stadium.png","Vault of Champions.png"],
+      "Dual Lands Fullart": ["Badlands (10mdBwmbcpvq8ZjzfCknODy7k2Lk7f0vV).jpg","Bayou (11Sb6yWQHSCR-gIMQ6pwealZN7e_DlbKg).jpg","Plateau (11PtlTWjFMUsv2gNeUsn-cLQ7n0yW1mdz).jpg","Savannah (11XimGpjcDusbqYnyI_ZhuTQeDCTGfBkW).jpg","Scrubland (11PbFVTdxC0Zf9Z-PjZ_ls6eInprL9kbB) (1).jpg","Taiga (10gyiCkBvciF_1MjZGn_hBX8p3vDMJTKa).jpg","Tropical Island (11NaQbb5zkpB91IrXdKWUy0HsWnUrUCLx).jpg","Tundra (10Zatk9IiHvSY2e7UwOpLMESVA-k3K6Xm).jpg","Underground Sea (10mslsa5aNh76aNAPjtaoP3NKavzYR3dA).jpg","Volcanic Island (11O693b4zelLkUgOgpUhqgBXv50UDGzfa).jpg"],
+      "Dual Lands Retro": ["Badlands.png","bayou.png","Plateau.png","Savannah.png","Scrubland.png","taiga.png","tropical island.png","tundra.png","underground sea.png","volcanic island.png"],
+      "Fetchlands Fullart": ["Arid Mesa (11HrGyfRl9BPcNDNX-VxCrmxV_NxPKbMJ).png","Bloodstained Mire (11oDhB9rkEhzrmen0oyFGdn6Py8wfRnPN).png","Flooded Strand (11mReB6DPdiZo6WIJ9FwNvZ2UHMTMP42B).png","Marsh Flats (11ZhHpUekEJekE9h05NHITp0fO11RL2eK) (1).png","Misty Rainforest (12fMqo0a4ZxWwbPYK8D8dhvCvAb8-XcAI).jpg","Polluted Delta (11aNXaTXIcyC23Hiv3bZWi74K8K4GerFO).jpg","Scalding Tarn (12geqvCTixJ7wd23L4DqOtFoZ0rAypJ7A).png","Verdant Catacombs (12cnEWtP6_9B6qPeb2vsFN8dvFOMg2EOw).jpg","Windswept Heath (11jwu7eNi61hTZxjfwTCh0edkZqF6HAkH).png","Wooded Foothills (12IqZHD1UiN6p95B8MxYquuzfyrF4WE2u).png"],
+      "Fetchlands Retro": ["AridMesa.png","Bloodstained Mire.png","Flooded Strand.png","Marsh Flats.png","Misty Rainforest.png","Polluted Delta.png","Scalding Tarn.png","Verdant Catacombs.png","Windswept Heath.png","Wooded Foothills.png"],
+      "Shocklands Retro": ["Blood Crypt.png","Breeding Pool.png","Godless Shrine.png","Hallowed Fountain.png","Overgrown Tomb.png","Sacred Foundry.png","Steam Vents.png","Stomping Ground.png","Temple Garden.png","Watery Grave.png"],
+      "Special Lands": ["CommandTower.png","CommandTowerMB2.jpg","CommandTowerSLD.jpg","LotusField.jpg"],
+      "Surveil Lands Fullart": ["MeticulousArchive.jpg","ShadowyBackstreet.jpg","UndercitySewers.png"]
+    }
+  },
+  "Commander Cards": {
+    sub: true,
+    sections: {
+      "Universal": ["Cardback2.0.png","desktop.ini","Lightning Greaves (Fullart, Masterpiece) [MPS] {14}.png","LightningGreaves.png","LightningGreavesFullart.png","LightningGreavesMasterpiece.png","LightningGreavesMB2.png","ManaVault.png","ManaVaultEtched.png","ManaVaultFullart.png","ManaVaultMasterpiece.png","Roaming Throne (Fullart, Masterpiece) [LCI] {258}.jpg","RoamingThrone.png","RoamingThroneFullart.png","SolemnSimulacrum.jpg","SolemnSimulacrumFullart.jpg","SolemnSimulacrumMasterpiece.jpg","SolRing.png","SolRingDwarven.png","SolRingElven.png","SolRingEtched.png","SolRingGalaxy.png","SolRingHuman.png","SolRingMasterpiece.png","SolRingMB2.png","SolRingRetro.png","SolRingRevised.png","SolRingShakespeare.png","Strionic Resonator (Fullart, Masterpiece) [NCC] {381}.jpg","StrionicResonator.png","StrionicResonatorFullart.png","Teferi's Protection (Borderless) [PLST] {178}.jpg","Teferi'sProtection.jpg","TheOneRing.png","TheOneRingPoster.png","ThroneOfEldraine.png","Void Winnower (Fullart) [BFZ] {17}.jpg"]
+    }
+  },
+  "Gods": { sub: false, items: [
+    "Athreos, God of Passage (Fullart, Stargazing) [SLD] {76}.jpg","Ephara, God of the Polis (Fullart, Stargazing) [SLD] {72}.jpg",
+    "Erebos, God of the Dead (Fullart, Stargazing) [SLD] {74}.jpg","Heliod, God of the Sun (Fullart, Stargazing) [SLD] {68}.jpg",
+    "Iroas, God of Victory (Fullart, Stargazing) [SLD] {70}.jpg","Karametra, God of Harvests (Fullart, Stargazing) [SLD] {69}.jpg",
+    "Keranos, God of Storms (Fullart, Stargazing) [SLD] {79}.jpg","Kruphix, God of Horizons (Fullart, Stargazing) [SLD] {73}.jpg",
+    "Mogis, God of Slaughter (Fullart, Stargazing) [SLD] {78}.jpg","Nylea, God of the Hunt (Fullart, Stargazing) [SLD] {80}.jpg",
+    "Pharika, God of Affliction (Fullart, Stargazing) [SLD] {82}.jpg","Phenax, God of Deception (Fullart, Stargazing) [SLD] {75}.jpg",
+    "Purphoros, God of the Forge (Fullart, Stargazing) [SLD] {77}.jpg","Thassa, God of the Sea (Fullart, Stargazing) [SLD] {71}.jpg",
+    "Xenagos, God of Revels (Fullart, Stargazing) [SLD] {81}.jpg"
+  ]}
+};
+
+let stock = {};
+let customItems = {}; // { cat: { sub: [names] } } or { cat: { '__flat__': [names] } }
+
+function itemKey(cat, sub, name) {
+  return sub ? `${cat}||${sub}||${name}` : `${cat}||${name}`;
+}
+
+function allItems() {
+  const arr = [];
+  for (const [cat, def] of Object.entries(CATALOG)) {
+    if (def.sub) {
+      const allSubs = new Set([
+        ...Object.keys(def.sections),
+        ...Object.keys(customItems[cat] || {}).filter(s => s !== '__flat__')
+      ]);
+      for (const sub of allSubs) {
+        const base = def.sections[sub] || [];
+        const custom = customItems[cat]?.[sub] || [];
+        for (const name of [...base, ...custom]) {
+          const key = itemKey(cat, sub, name);
+          if (!deletedKeys.has(key)) arr.push({ cat, sub, name, key });
+        }
+      }
+    } else {
+      const base = def.items || [];
+      const custom = customItems[cat]?.['__flat__'] || [];
+      for (const name of [...base, ...custom]) {
+        const key = itemKey(cat, null, name);
+        if (!deletedKeys.has(key)) arr.push({ cat, sub: null, name, key });
+      }
+    }
+  }
+  return arr;
+}
+
+// initStock and saveToStorage defined above with Firebase
+
+function exportData() {
+  const data = {
+    version: 2,
+    stock,
+    cardImages,
+    deletedKeys: [...deletedKeys],
+    customItems
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'proxy_inventory_save.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  const t = document.getElementById('toast');
+  t.textContent = '⬇ Save file downloaded';
+  t.classList.add('show');
+  setTimeout(() => { t.classList.remove('show'); t.textContent = '✓ Saved'; }, 2500);
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.version !== 1 && data.version !== 2) throw new Error('Unknown format');
+      stock = data.stock || {};
+      cardImages = data.cardImages || {};
+      deletedKeys = new Set(data.deletedKeys || []);
+      customItems = data.customItems || {};
+      for (const item of allItems()) {
+        if (!(item.key in stock)) stock[item.key] = 0;
+      }
+      saveToStorage();
+      buildCatFilters();
+      renderAll();
+      updateStats();
+      const t = document.getElementById('toast');
+      t.textContent = '✓ Save loaded';
+      t.classList.add('show');
+      setTimeout(() => { t.classList.remove('show'); t.textContent = '✓ Saved'; }, 2500);
+    } catch(err) {
+      alert('Could not load save file — make sure it\'s a valid proxy inventory export.');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function getStock(key) { return stock[key] ?? 0; }
+
+function adj(key, delta) {
+  stock[key] = Math.max(0, (stock[key] ?? 0) + delta);
+  const el = document.getElementById('sn_' + CSS.escape(key));
+  if (el) {
+    el.textContent = stock[key];
+    el.className = 'stock-num ' + stockClass(stock[key]);
+  }
+  const card = document.getElementById('card_' + CSS.escape(key));
+  if (card) card.className = 'card' + (stock[key] === 0 ? ' out-of-stock' : '');
+  updateStats();
+  autoSave();
+}
+
+let autoSaveTimer = null;
+function autoSave() {
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(saveToStorage, 1500);
+}
+
+function stockClass(n) {
+  if (n === 0) return 'zero';
+  if (n <= 2) return 'low';
+  return 'good';
+}
+
+function cleanName(filename) {
+  return filename.replace(/\.[^.]+$/, '');
+}
+
+function getExt(filename) {
+  const m = filename.match(/\.([^.]+)$/);
+  return m ? m[1].toLowerCase() : '';
+}
+
+function makeCard(item) {
+  const n = getStock(item.key);
+  const eid = CSS.escape(item.key);
+  const img = cardImages[item.key];
+  const safeKey = btoa(unescape(encodeURIComponent(item.key)));
+
+  const imgHtml = img
+    ? `<img class="card-img-thumb" src="${img}" title="Click to view/change image" data-action="img" data-key="${safeKey}">`
+    : `<div class="card-img-placeholder" title="Add image" data-action="img" data-key="${safeKey}">🖼</div>`;
+
+  return `<div class="card${n === 0 ? ' out-of-stock' : ''}" id="card_${eid}" data-key="${safeKey}">
+    ${imgHtml}
+    <span class="card-name" title="${item.name}">${cleanName(item.name)}<span class="ext">.${getExt(item.name)}</span></span>
+    <div class="stock-display">
+      <div class="stepper">
+        <button class="step-btn" data-action="dec" data-key="${safeKey}">−</button>
+      </div>
+      <span class="stock-num ${stockClass(n)}" id="sn_${eid}">${n}</span>
+      <div class="stepper">
+        <button class="step-btn" data-action="inc" data-key="${safeKey}">+</button>
+      </div>
+    </div>
+    <button class="delete-btn" title="Delete item" data-action="delete" data-key="${safeKey}">🗑</button>
+  </div>`;
+}
+
+function decodeKey(safeKey) {
+  return decodeURIComponent(escape(atob(safeKey)));
+}
+
+function getItemsForSection(cat, sub) {
+  const base = sub
+    ? (CATALOG[cat]?.sections?.[sub] || [])
+    : (CATALOG[cat]?.items || []);
+  const custom = sub
+    ? (customItems[cat]?.[sub] || [])
+    : (customItems[cat]?.['__flat__'] || []);
+  return [...base, ...custom].filter(name => !deletedKeys.has(itemKey(cat, sub, name)));
+}
+
+function updateStats() {
+  const items = allItems();
+  const total = items.length;
+  const inStock = items.filter(i => getStock(i.key) > 0).length;
+  const totalQty = items.reduce((s, i) => s + getStock(i.key), 0);
+  const low = items.filter(i => { const v = getStock(i.key); return v > 0 && v <= 2; }).length;
+  document.getElementById('stats-bar').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Total items</div><div class="stat-value accent">${total}</div></div>
+    <div class="stat-card"><div class="stat-label">In stock</div><div class="stat-value green">${inStock}</div></div>
+    <div class="stat-card"><div class="stat-label">Out of stock</div><div class="stat-value">${total - inStock}</div></div>
+    <div class="stat-card"><div class="stat-label">Total qty</div><div class="stat-value">${totalQty}</div></div>
+    <div class="stat-card"><div class="stat-label">Low stock (≤2)</div><div class="stat-value amber">${low}</div></div>
+  `;
+  document.getElementById('total-badge').textContent = `${totalQty} in stock`;
+}
+
+function renderAll() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const sf = document.getElementById('stock-filter').value;
+  const activeCat = document.querySelector('.filter-btn.active')?.dataset.cat || 'all';
+  const isAdmin = !document.body.classList.contains('view-mode');
+  let html = '';
+
+  for (const [cat, def] of Object.entries(CATALOG)) {
+    if (activeCat !== 'all' && activeCat !== cat) continue;
+
+    let sectionHtml = '';
+    let sectionCount = 0;
+    let sectionStock = 0;
+
+    if (def.sub) {
+      const allSubs = [...new Set([
+        ...Object.keys(def.sections),
+        ...Object.keys(customItems[cat] || {}).filter(s => s !== '__flat__')
+      ])];
+      let subHtml = '';
+      for (const sub of allSubs) {
+        const names = getItemsForSection(cat, sub);
+        const filtered = names.filter(name => {
+          const n = getStock(itemKey(cat, sub, name));
+          if (sf === 'instock' && n === 0) return false;
+          if (sf === 'out' && n > 0) return false;
+          if (q && !name.toLowerCase().includes(q)) return false;
+          return true;
+        });
+        const addBtnHtml = isAdmin
+          ? `<button class="add-item-btn admin-only" data-action="additem" data-cat="${cat}" data-sub="${sub}" title="Add card to this section">＋</button>`
+          : '';
+        if (!filtered.length && !isAdmin) continue;
+        sectionCount += filtered.length;
+        sectionStock += filtered.reduce((s, name) => s + getStock(itemKey(cat, sub, name)), 0);
+        subHtml += `<div class="subsection"><div class="subsection-title">${sub}${addBtnHtml}</div><div class="card-grid">`;
+        for (const name of filtered) subHtml += makeCard({ cat, sub, name, key: itemKey(cat, sub, name) });
+        subHtml += `</div></div>`;
+      }
+      sectionHtml = subHtml;
+    } else {
+      const names = getItemsForSection(cat, null);
+      const filtered = names.filter(name => {
+        const n = getStock(itemKey(cat, null, name));
+        if (sf === 'instock' && n === 0) return false;
+        if (sf === 'out' && n > 0) return false;
+        if (q && !name.toLowerCase().includes(q)) return false;
+        return true;
+      });
+      sectionCount = filtered.length;
+      sectionStock = filtered.reduce((s, name) => s + getStock(itemKey(cat, null, name)), 0);
+      sectionHtml = `<div class="card-grid">`;
+      for (const name of filtered) sectionHtml += makeCard({ cat, sub: null, name, key: itemKey(cat, null, name) });
+      sectionHtml += `</div>`;
+    }
+
+    if (!sectionHtml.trim() || sectionCount === 0) continue;
+
+    const addBtnHtml = (!def.sub && isAdmin)
+      ? `<button class="add-item-btn admin-only" data-action="additem" data-cat="${cat}" data-sub="" title="Add card to this section">＋</button>`
+      : '';
+    html += `<div class="section">
+      <div class="section-header">
+        <span class="section-title">${cat}</span>
+        <span class="section-count">${sectionCount} items</span>
+        <span class="section-stock">${sectionStock} in stock</span>
+        ${addBtnHtml}
+      </div>
+      ${sectionHtml}
+    </div>`;
+  }
+
+  document.getElementById('content').innerHTML = html || `<p style="color:var(--text3);padding:2rem 0;">No items match your filters.</p>`;
+}
+
+function buildCatFilters() {
+  const wrap = document.getElementById('cat-filters');
+  let html = `<button class="filter-btn active" data-cat="all" onclick="setFilter(this,'all')">All</button>`;
+  for (const cat of Object.keys(CATALOG)) {
+    html += `<button class="filter-btn" data-cat="${cat}" onclick="setFilter(this,'${cat}')">${cat}</button>`;
+  }
+  wrap.innerHTML = html;
+}
+
+function setFilter(btn, cat) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAll();
+}
+
+function showAdminModal() {
+  document.getElementById('pw-error').style.display = 'none';
+  document.getElementById('pw-input').value = '';
+  document.getElementById('modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('pw-input').focus(), 50);
+}
+
+function hideModal() { document.getElementById('modal').classList.add('hidden'); }
+
+function checkPw() {
+  if (document.getElementById('pw-input').value === ADMIN_PW) {
+    hideModal();
+    enterAdmin();
+  } else {
+    document.getElementById('pw-error').style.display = 'block';
+    document.getElementById('pw-input').value = '';
+  }
+}
+
+function enterAdmin() {
+  document.body.classList.remove('view-mode');
+  document.getElementById('mode-pill').textContent = 'Admin';
+  document.getElementById('mode-pill').className = 'mode-pill admin';
+  document.getElementById('admin-btn').classList.add('hidden');
+  renderAll();
+}
+
+function exitAdmin() {
+  saveToStorage();
+  if (confirm('Export your changes as a save file before exiting admin mode?\n\nThis ensures your changes are kept when you reopen the page.')) {
+    exportData();
+  }
+  document.body.classList.add('view-mode');
+  document.getElementById('mode-pill').textContent = 'View';
+  document.getElementById('mode-pill').className = 'mode-pill view';
+  document.getElementById('admin-btn').classList.remove('hidden');
+  renderAll();
+}
+
+document.getElementById('modal').addEventListener('click', function(e) {
+  if (e.target === this) hideModal();
+});
+
+// ── Delete logic ──────────────────────────────────────────────────────────────
+let _pendingAction = null;
+
+function confirmDeleteItem(key, displayName) {
+  document.getElementById('confirm-title').textContent = 'Delete item?';
+  document.getElementById('confirm-msg').textContent = `"${displayName}" will be permanently removed from the catalog. This cannot be undone.`;
+  _pendingAction = () => deleteItem(key);
+  document.getElementById('confirm-modal').classList.remove('hidden');
+}
+
+function confirmDeleteOutOfStock() {
+  const outCount = allItems().filter(i => getStock(i.key) === 0).length;
+  if (outCount === 0) { alert('No out-of-stock items to delete.'); return; }
+  document.getElementById('confirm-title').textContent = `Delete ${outCount} out-of-stock item${outCount !== 1 ? 's' : ''}?`;
+  document.getElementById('confirm-msg').textContent = `All items currently showing 0 stock will be permanently removed. This cannot be undone.`;
+  _pendingAction = deleteOutOfStock;
+  document.getElementById('confirm-modal').classList.remove('hidden');
+}
+
+function hideConfirm() {
+  document.getElementById('confirm-modal').classList.add('hidden');
+  _pendingAction = null;
+}
+
+function confirmOk() {
+  if (_pendingAction) _pendingAction();
+  hideConfirm();
+}
+
+function deleteItem(key) {
+  deletedKeys.add(key);
+  delete stock[key];
+  delete cardImages[key];
+  // Also remove from customItems if it was a custom addition
+  for (const cat of Object.keys(customItems)) {
+    for (const sub of Object.keys(customItems[cat])) {
+      const arr = customItems[cat][sub];
+      const parts = key.split('||');
+      const name = parts[parts.length - 1];
+      const idx = arr.indexOf(name);
+      if (idx !== -1) arr.splice(idx, 1);
+    }
+  }
+  saveToStorage();
+  renderAll();
+  updateStats();
+}
+
+function deleteOutOfStock() {
+  for (const item of allItems()) {
+    if (getStock(item.key) === 0) {
+      deletedKeys.add(item.key);
+      delete stock[item.key];
+      delete cardImages[item.key];
+    }
+  }
+  saveToStorage();
+  renderAll();
+  updateStats();
+}
+
+// ── Add item logic ────────────────────────────────────────────────────────────
+let _addCat = null, _addSub = null;
+
+function openAddItemModal(cat, sub) {
+  _addCat = cat;
+  _addSub = sub || null;
+  const label = sub ? `${cat} › ${sub}` : cat;
+  document.getElementById('add-item-section-label').textContent = label;
+  document.getElementById('add-item-name').value = '';
+  document.getElementById('add-item-qty').value = '0';
+  document.getElementById('add-item-error').textContent = '';
+  document.getElementById('add-item-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('add-item-name').focus(), 50);
+}
+
+function hideAddItemModal() {
+  document.getElementById('add-item-modal').classList.add('hidden');
+  _addCat = null; _addSub = null;
+}
+
+function submitAddItem() {
+  const rawName = document.getElementById('add-item-name').value.trim();
+  const qty = Math.max(0, parseInt(document.getElementById('add-item-qty').value) || 0);
+  const errEl = document.getElementById('add-item-error');
+
+  if (!rawName) { errEl.textContent = 'Please enter a card name.'; return; }
+  if (!_addCat) return;
+
+  const subKey = _addSub || '__flat__';
+  if (!customItems[_addCat]) customItems[_addCat] = {};
+  if (!customItems[_addCat][subKey]) customItems[_addCat][subKey] = [];
+
+  // Check for duplicate
+  const key = itemKey(_addCat, _addSub, rawName);
+  if (allItems().some(i => i.key === key)) {
+    errEl.textContent = 'An item with this name already exists in this section.'; return;
+  }
+
+  customItems[_addCat][subKey].push(rawName);
+  stock[key] = qty;
+  // Remove from deletedKeys in case it was previously deleted
+  deletedKeys.delete(key);
+  saveToStorage();
+  hideAddItemModal();
+  renderAll();
+  updateStats();
+
+  const t = document.getElementById('toast');
+  t.textContent = '✓ Card added';
+  t.classList.add('show');
+  setTimeout(() => { t.classList.remove('show'); t.textContent = '✓ Saved'; }, 2000);
+}
+
+// ── Image modal logic ─────────────────────────────────────────────────────────
+let _imgKey = null;
+
+function openImgModal(key) {
+  _imgKey = key;
+  const img = cardImages[key];
+  const modalImg = document.getElementById('img-modal-img');
+  const removeBtn = document.getElementById('img-remove-btn');
+  const name = key.split('||').pop();
+  document.getElementById('img-modal-title').textContent = cleanName(name);
+  if (img) {
+    modalImg.src = img;
+    modalImg.style.display = '';
+    removeBtn.classList.remove('hidden');
+  } else {
+    modalImg.src = '';
+    modalImg.style.display = 'none';
+    removeBtn.classList.add('hidden');
+  }
+  document.getElementById('img-file-input').value = '';
+  document.getElementById('img-modal').classList.remove('hidden');
+}
+
+function hideImgModal() {
+  document.getElementById('img-modal').classList.add('hidden');
+  _imgKey = null;
+}
+
+function handleImageUpload(event) {
+  const file = event.target.files[0];
+  if (!file || !_imgKey) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    cardImages[_imgKey] = e.target.result;
+    saveToStorage();
+    const eid = CSS.escape(_imgKey);
+    const card = document.getElementById('card_' + eid);
+    if (card) {
+      const safeKey = btoa(unescape(encodeURIComponent(_imgKey)));
+      const placeholder = card.querySelector('.card-img-placeholder');
+      if (placeholder) {
+        const thumb = document.createElement('img');
+        thumb.className = 'card-img-thumb';
+        thumb.src = e.target.result;
+        thumb.title = 'Click to view/change image';
+        thumb.dataset.action = 'img';
+        thumb.dataset.key = safeKey;
+        placeholder.replaceWith(thumb);
+      } else {
+        const thumb = card.querySelector('.card-img-thumb');
+        if (thumb) thumb.src = e.target.result;
+      }
+    }
+    const modalImg = document.getElementById('img-modal-img');
+    modalImg.src = e.target.result;
+    modalImg.style.display = '';
+    document.getElementById('img-remove-btn').classList.remove('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeImage() {
+  if (!_imgKey) return;
+  delete cardImages[_imgKey];
+  saveToStorage();
+  const eid = CSS.escape(_imgKey);
+  const card = document.getElementById('card_' + eid);
+  if (card) {
+    const safeKey = btoa(unescape(encodeURIComponent(_imgKey)));
+    const thumb = card.querySelector('.card-img-thumb');
+    if (thumb) {
+      const placeholder = document.createElement('div');
+      placeholder.className = 'card-img-placeholder';
+      placeholder.title = 'Add image';
+      placeholder.textContent = '🖼';
+      placeholder.dataset.action = 'img';
+      placeholder.dataset.key = safeKey;
+      thumb.replaceWith(placeholder);
+    }
+  }
+  const modalImg = document.getElementById('img-modal-img');
+  modalImg.src = '';
+  modalImg.style.display = 'none';
+  document.getElementById('img-remove-btn').classList.add('hidden');
+}
+
+// ── Event delegation for all card + UI actions ────────────────────────────────
+document.getElementById('content').addEventListener('click', function(e) {
+  // Handle "add item" buttons
+  const addBtn = e.target.closest('[data-action="additem"]');
+  if (addBtn) {
+    openAddItemModal(addBtn.dataset.cat, addBtn.dataset.sub || null);
+    return;
+  }
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const safeKey = el.dataset.key;
+  if (!safeKey) return;
+  const key = decodeKey(safeKey);
+  const action = el.dataset.action;
+  if (action === 'inc') adj(key, 1);
+  else if (action === 'dec') adj(key, -1);
+  else if (action === 'img') openImgModal(key);
+  else if (action === 'delete') {
+    const card = el.closest('.card');
+    const nameEl = card ? card.querySelector('.card-name') : null;
+    const displayName = nameEl ? nameEl.getAttribute('title') : key.split('||').pop();
+    confirmDeleteItem(key, cleanName(displayName));
+  }
+});
+
+document.getElementById('confirm-modal').addEventListener('click', function(e) {
+  if (e.target === this) hideConfirm();
+});
+document.getElementById('img-modal').addEventListener('click', function(e) {
+  if (e.target === this) hideImgModal();
+});
+document.getElementById('add-item-modal').addEventListener('click', function(e) {
+  if (e.target === this) hideAddItemModal();
+});
+document.getElementById('add-item-name').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') submitAddItem();
+});
+
+
+initStock();
+
+// Expose functions used by inline HTML event handlers (required for type="module" scope)
+window.showAdminModal = showAdminModal;
+window.hideModal = hideModal;
+window.checkPw = checkPw;
+window.exitAdmin = exitAdmin;
+window.exportData = exportData;
+window.importData = importData;
+window.confirmDeleteOutOfStock = confirmDeleteOutOfStock;
+window.hideConfirm = hideConfirm;
+window.confirmOk = confirmOk;
+window.hideImgModal = hideImgModal;
+window.removeImage = removeImage;
+window.handleImageUpload = handleImageUpload;
+window.hideAddItemModal = hideAddItemModal;
+window.submitAddItem = submitAddItem;
+window.setFilter = setFilter;
+window.renderAll = renderAll;
+</script>
+</body>
+</html>
